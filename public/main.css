@@ -1,10 +1,81 @@
 body {
   margin: 0;
   padding: 0;
+  overflow: hidden; /* Prevent scroll on mobile */
 }
 
 html,
 body,
 #map {
   height: 100%;
+}
+
+/* Mobile-specific map controls styling */
+.maplibregl-ctrl-group {
+  box-shadow: 0 0 10px rgba(0,0,0,0.15) !important;
+}
+
+.maplibregl-ctrl-group button {
+  width: 44px !important;
+  height: 44px !important;
+  font-size: 18px !important;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .maplibregl-ctrl-top-right {
+    top: 60px !important;
+    right: 10px !important;
+  }
+  
+  .maplibregl-ctrl-group button {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .maplibregl-ctrl-top-right {
+    top: 50px !important;
+    right: 5px !important;
+  }
+  
+  .maplibregl-ctrl-group button {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 16px !important;
+  }
+}
+
+/* Popup mobile optimization */
+.maplibregl-popup-content {
+  padding: 12px !important;
+  max-width: 300px !important;
+  font-size: 14px !important;
+}
+
+@media (max-width: 480px) {
+  .maplibregl-popup-content {
+    padding: 10px !important;
+    max-width: 250px !important;
+    font-size: 13px !important;
+  }
+  
+  .maplibregl-popup-content strong {
+    font-size: 14px !important;
+  }
+}
+
+/* Touch-friendly button improvements */
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Ensure proper touch targets for mobile */
+@media (hover: none) and (pointer: coarse) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

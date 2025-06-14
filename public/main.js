@@ -90,28 +90,57 @@ map.addControl(new ContourControl(), 'top-right');
 // Weather API configuration (using completely free Open-Meteo API)
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1';
 
-// Create weather widget
+// Create weather widget with responsive design
 const weatherWidget = document.createElement('div');
+weatherWidget.className = 'weather-widget';
 weatherWidget.style.cssText = `
   position: absolute;
   top: 10px;
   left: 10px;
   background: rgba(255, 255, 255, 0.95);
-  padding: 15px;
+  padding: 12px;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.2);
   z-index: 1000;
-  min-width: 250px;
+  min-width: 240px;
+  max-width: 300px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 14px;
 `;
+
+// Add mobile-specific styles dynamically
+function applyMobileStyles() {
+  if (window.innerWidth <= 768) {
+    weatherWidget.style.position = 'fixed';
+    weatherWidget.style.left = '10px';
+    weatherWidget.style.right = '10px';
+    weatherWidget.style.width = 'calc(100% - 20px)';
+    weatherWidget.style.minWidth = 'auto';
+    weatherWidget.style.maxWidth = 'none';
+    weatherWidget.style.padding = '10px';
+    weatherWidget.style.fontSize = '13px';
+  }
+  
+  if (window.innerWidth <= 480) {
+    weatherWidget.style.top = '5px';
+    weatherWidget.style.left = '5px';
+    weatherWidget.style.right = '5px';
+    weatherWidget.style.width = 'calc(100% - 10px)';
+    weatherWidget.style.padding = '8px';
+    weatherWidget.style.fontSize = '12px';
+  }
+}
+
+// Apply mobile styles on load and resize
+applyMobileStyles();
+window.addEventListener('resize', applyMobileStyles);
 weatherWidget.innerHTML = `
-  <div style="display: flex; align-items: center; margin-bottom: 10px;">
-    <h3 style="margin: 0; color: #333;">天気情報</h3>
-    <button id="refreshWeather" style="margin-left: auto; padding: 4px 8px; border: none; background: #007cbf; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">更新</button>
+  <div style="display: flex; align-items: center; margin-bottom: 8px;">
+    <h3 style="margin: 0; color: #333; font-size: 1.1em;">天気情報</h3>
+    <button id="refreshWeather" style="margin-left: auto; padding: 6px 12px; border: none; background: #007cbf; color: white; border-radius: 4px; cursor: pointer; font-size: 12px; min-height: 32px; min-width: 48px;">更新</button>
   </div>
   <div id="weatherContent">
-    <div style="text-align: center; color: #666; padding: 20px;">
+    <div style="text-align: center; color: #666; padding: 15px;">
       読み込み中...
     </div>
   </div>
