@@ -158,11 +158,11 @@ async function loadMountains() {
     // Add mountain markers
     data.elements.forEach(mountain => {
       if (mountain.lat && mountain.lon) {
-        const name = mountain.tags?.name || mountain.tags?.['name:ja'] || '名称不明';
+        const name = mountain.tags?.name || mountain.tags?.['name:ja'];
         const elevation = mountain.tags?.ele ? parseInt(mountain.tags.ele) : null;
         
-        // Only show mountains with elevation > 500m or famous ones
-        if (elevation && elevation > 500) {
+        // Only show mountains with elevation > 500m and have a name
+        if (elevation && elevation > 500 && name) {
           // Create marker
           const marker = new maplibregl.Marker({
             color: '#8B4513',
@@ -174,7 +174,7 @@ async function loadMountains() {
                 .setHTML(`
                   <div style="padding: 10px;">
                     <strong>${name}</strong><br>
-                    ${elevation ? `標高: ${elevation} m` : '標高情報なし'}
+                    標高: ${elevation} m
                   </div>
                 `)
             );
