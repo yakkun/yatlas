@@ -49,6 +49,226 @@ map.addControl(new maplibregl.TerrainControl({
   exaggeration: 1.3
 }), 'top-right');
 
+// Add contour line toggle control
+class ContourControl {
+  onAdd(map) {
+    this._map = map;
+    this._container = document.createElement('div');
+    this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    
+    this._button = document.createElement('button');
+    this._button.type = 'button';
+    this._button.title = '等高線の表示切り替え';
+    this._button.style.cssText = `
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 16px;
+    `;
+    
+    this._button.addEventListener('click', () => {
+      const visibility = this._map.getLayoutProperty('contour-lines', 'visibility');
+      const newVisibility = visibility === 'visible' ? 'none' : 'visible';
+      this._map.setLayoutProperty('contour-lines', 'visibility', newVisibility);
+      
+      this._button.style.backgroundColor = newVisibility === 'visible' ? '#007cbf' : '';
+      this._button.style.color = newVisibility === 'visible' ? 'white' : '';
+    });
+    
+    this._container.appendChild(this._button);
+    return this._container;
+  }
+  
+  onRemove() {
+    this._container.parentNode.removeChild(this._container);
+    this._map = undefined;
+  }
+}
+
+map.addControl(new ContourControl(), 'top-right');
+
+// Weather API configuration (using completely free Open-Meteo API)
+const WEATHER_API_URL = 'https://api.open-meteo.com/v1';
+
+// Create weather widget
+const weatherWidget = document.createElement('div');
+weatherWidget.style.cssText = `
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  z-index: 1000;
+  min-width: 250px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+`;
+weatherWidget.innerHTML = `
+  <div style="display: flex; align-items: center; margin-bottom: 10px;">
+    <h3 style="margin: 0; color: #333;">天気情報</h3>
+    <button id="refreshWeather" style="margin-left: auto; padding: 4px 8px; border: none; background: #007cbf; color: white; border-radius: 4px; cursor: pointer; font-size: 12px;">更新</button>
+  </div>
+  <div id="weatherContent">
+    <div style="text-align: center; color: #666; padding: 20px;">
+      読み込み中...
+    </div>
+  </div>
+`;
+document.getElementById('map').appendChild(weatherWidget);
+
+// Get weather for current map center using Open-Meteo API (completely free, no API key required)
+async function getWeatherData(lat, lon) {
+  try {
+    const response = await fetch(
+      `${WEATHER_API_URL}/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Convert Open-Meteo data to our format
+    const current = data.current;
+    const weatherCode = current.weather_code;
+    
+    // Convert WMO weather codes to descriptions
+    const weatherInfo = getWeatherFromCode(weatherCode);
+    
+    return {
+      name: "現在地",
+      main: {
+        temp: Math.round(current.temperature_2m),
+        feels_like: Math.round(current.apparent_temperature),
+        humidity: current.relative_humidity_2m,
+        pressure: Math.round(current.pressure_msl || current.surface_pressure)
+      },
+      weather: [{
+        main: weatherInfo.main,
+        description: weatherInfo.description,
+        icon: weatherInfo.icon
+      }],
+      wind: {
+        speed: Math.round(current.wind_speed_10m * 10) / 10,
+        deg: current.wind_direction_10m
+      },
+      cloud_cover: current.cloud_cover,
+      precipitation: current.precipitation || 0
+    };
+  } catch (error) {
+    console.error('Weather API error:', error);
+    return null;
+  }
+}
+
+// Convert WMO weather codes to weather information
+function getWeatherFromCode(code) {
+  const weatherCodes = {
+    0: { main: 'Clear', description: '晴れ', icon: '01d' },
+    1: { main: 'Clear', description: 'ほぼ晴れ', icon: '02d' },
+    2: { main: 'Clouds', description: '曇り', icon: '03d' },
+    3: { main: 'Clouds', description: '曇り', icon: '04d' },
+    45: { main: 'Fog', description: '霧', icon: '50d' },
+    48: { main: 'Fog', description: '着氷霧', icon: '50d' },
+    51: { main: 'Drizzle', description: '軽い霧雨', icon: '09d' },
+    53: { main: 'Drizzle', description: '霧雨', icon: '09d' },
+    55: { main: 'Drizzle', description: '強い霧雨', icon: '09d' },
+    61: { main: 'Rain', description: '軽い雨', icon: '10d' },
+    63: { main: 'Rain', description: '雨', icon: '10d' },
+    65: { main: 'Rain', description: '強い雨', icon: '10d' },
+    71: { main: 'Snow', description: '軽い雪', icon: '13d' },
+    73: { main: 'Snow', description: '雪', icon: '13d' },
+    75: { main: 'Snow', description: '大雪', icon: '13d' },
+    95: { main: 'Thunderstorm', description: '雷雨', icon: '11d' },
+    96: { main: 'Thunderstorm', description: '雹を伴う雷雨', icon: '11d' },
+    99: { main: 'Thunderstorm', description: '大粒の雹を伴う雷雨', icon: '11d' }
+  };
+  
+  return weatherCodes[code] || { main: 'Unknown', description: '不明', icon: '01d' };
+}
+
+// Get wind direction text
+function getWindDirection(deg) {
+  const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+  return directions[Math.round(deg / 22.5) % 16];
+}
+
+// Get weather icon emoji
+function getWeatherEmoji(weatherMain) {
+  const emojiMap = {
+    'Clear': '☀️',
+    'Clouds': '☁️',
+    'Rain': '🌧️',
+    'Snow': '❄️',
+    'Drizzle': '🌦️',
+    'Thunderstorm': '⛈️',
+    'Mist': '🌫️',
+    'Fog': '🌫️'
+  };
+  return emojiMap[weatherMain] || '🌤️';
+}
+
+// Update weather display
+async function updateWeather() {
+  const center = map.getCenter();
+  const weatherData = await getWeatherData(center.lat, center.lng);
+  
+  const weatherContent = document.getElementById('weatherContent');
+  
+  if (!weatherData) {
+    weatherContent.innerHTML = `
+      <div style="text-align: center; color: #f44336;">
+        天気情報の取得に失敗しました
+      </div>
+    `;
+    return;
+  }
+  
+  const weather = weatherData.weather[0];
+  const temp = weatherData.main.temp;
+  const feelsLike = weatherData.main.feels_like;
+  const humidity = weatherData.main.humidity;
+  const windSpeed = weatherData.wind.speed;
+  const windDir = getWindDirection(weatherData.wind.deg);
+  const pressure = weatherData.main.pressure;
+  const cloudCover = weatherData.cloud_cover || 0;
+  const precipitation = weatherData.precipitation || 0;
+  
+  weatherContent.innerHTML = `
+    <div style="display: flex; align-items: center; margin-bottom: 12px;">
+      <span style="font-size: 28px; margin-right: 12px;">${getWeatherEmoji(weather.main)}</span>
+      <div>
+        <div style="font-size: 18px; font-weight: bold; color: #333;">${temp}°C</div>
+        <div style="font-size: 12px; color: #666;">体感 ${feelsLike}°C</div>
+      </div>
+    </div>
+    
+    <div style="margin-bottom: 8px; color: #555;">
+      <strong>${weather.description}</strong>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px; color: #666;">
+      <div>💨 風: ${windSpeed}m/s ${windDir}</div>
+      <div>💧 湿度: ${humidity}%</div>
+      <div>🌡️ 気圧: ${pressure}hPa</div>
+      <div>☁️ 雲量: ${cloudCover}%</div>
+      ${precipitation > 0 ? `<div>🌧️ 降水: ${precipitation}mm</div>` : ''}
+    </div>
+    
+    <div style="margin-top: 10px; font-size: 11px; color: #4CAF50; text-align: center;">
+      ✅ リアルタイム気象データ（Open-Meteo API）
+    </div>
+  `;
+}
+
+// Refresh weather when button is clicked
+document.getElementById('refreshWeather').addEventListener('click', updateWeather);
+
+// Initialize weather on map load
+
 // Add terrain source and enable 3D terrain
 map.on('load', () => {
   // Add GSI elevation tile source
@@ -91,21 +311,44 @@ map.on('load', () => {
     }
   });
 
-  // Load mountains from OpenStreetMap
+  // Add contour lines from GSI
+  map.addSource('contour', {
+    type: 'raster',
+    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/contour/{z}/{x}/{y}.png'],
+    tileSize: 256,
+    maxzoom: 16,
+    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
+  });
+
+  map.addLayer({
+    id: 'contour-lines',
+    type: 'raster',
+    source: 'contour',
+    paint: {
+      'raster-opacity': 0.6
+    }
+  });
+
+  // Load mountains and hiking data from OpenStreetMap
   loadMountains();
+  loadHikingData();
+  
+  // Initialize weather data
+  updateWeather();
 });
 
 // Update URL when map is moved
 map.on('moveend', updateURL);
 
-// Update mountains when map is moved (with debounce)
-let mountainUpdateTimeout;
+// Update mountains and hiking data when map is moved (with debounce)
+let dataUpdateTimeout;
 map.on('moveend', () => {
-  clearTimeout(mountainUpdateTimeout);
-  mountainUpdateTimeout = setTimeout(() => {
+  clearTimeout(dataUpdateTimeout);
+  dataUpdateTimeout = setTimeout(() => {
     // Only update if zoom level is appropriate (avoid too many API calls)
     if (map.getZoom() > 8) {
       loadMountains();
+      loadHikingData();
     }
   }, 1000); // Wait 1 second after map stops moving
 });
@@ -122,6 +365,328 @@ window.addEventListener('popstate', () => {
 });
 
 let mountainMarkers = [];
+let hutMarkers = [];
+let waterMarkers = [];
+let trailheadMarkers = [];
+let parkingMarkers = [];
+
+// Load hiking trails and huts from OpenStreetMap
+async function loadHikingData() {
+  try {
+    const bounds = map.getBounds();
+    const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+    
+    const query = `
+      [out:json][timeout:25];
+      (
+        way["highway"="path"]["sac_scale"](${bbox});
+        way["highway"="track"]["sac_scale"](${bbox});
+        way["highway"="footway"]["sac_scale"](${bbox});
+        node["tourism"="alpine_hut"](${bbox});
+        node["amenity"="shelter"]["shelter_type"="basic_hut"](${bbox});
+        node["tourism"="wilderness_hut"](${bbox});
+        node["natural"="spring"](${bbox});
+        node["amenity"="drinking_water"](${bbox});
+        node["man_made"="water_well"](${bbox});
+        node["highway"="trailhead"](${bbox});
+        node["amenity"="parking"]["hiking"="yes"](${bbox});
+        node["amenity"="parking"]["access"="permissive"](${bbox});
+        way["amenity"="parking"]["hiking"="yes"](${bbox});
+      );
+      out geom;
+    `;
+    
+    const response = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: `data=${encodeURIComponent(query)}`
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Clear existing trail data
+    if (map.getSource('hiking-trails')) {
+      map.removeLayer('hiking-trails');
+      map.removeSource('hiking-trails');
+    }
+    
+    // Clear existing markers
+    hutMarkers.forEach(marker => marker.remove());
+    hutMarkers = [];
+    waterMarkers.forEach(marker => marker.remove());
+    waterMarkers = [];
+    trailheadMarkers.forEach(marker => marker.remove());
+    trailheadMarkers = [];
+    parkingMarkers.forEach(marker => marker.remove());
+    parkingMarkers = [];
+    
+    // Process trails
+    const trailFeatures = [];
+    const hutNodes = [];
+    const waterNodes = [];
+    const trailheadNodes = [];
+    const parkingNodes = [];
+    const parkingWays = [];
+    
+    data.elements.forEach(element => {
+      if (element.type === 'way' && element.geometry) {
+        // Check if this is a trail or parking area
+        if (element.tags?.highway && element.tags?.sac_scale) {
+          // This is a trail
+          const sacScale = element.tags.sac_scale || 'hiking';
+          trailFeatures.push({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: element.geometry.map(coord => [coord.lon, coord.lat])
+            },
+            properties: {
+              sac_scale: sacScale,
+              name: element.tags?.name || ''
+            }
+          });
+        } else if (element.tags?.amenity === 'parking') {
+          // This is a parking area
+          parkingWays.push(element);
+        }
+      } else if (element.type === 'node' && element.lat && element.lon) {
+        // Check node type
+        if (element.tags?.tourism === 'alpine_hut' || 
+            element.tags?.tourism === 'wilderness_hut' || 
+            element.tags?.amenity === 'shelter') {
+          hutNodes.push(element);
+        } else if (element.tags?.natural === 'spring' || 
+                   element.tags?.amenity === 'drinking_water' || 
+                   element.tags?.man_made === 'water_well') {
+          waterNodes.push(element);
+        } else if (element.tags?.highway === 'trailhead') {
+          trailheadNodes.push(element);
+        } else if (element.tags?.amenity === 'parking') {
+          parkingNodes.push(element);
+        }
+      }
+    });
+    
+    // Add trail layer
+    if (trailFeatures.length > 0) {
+      map.addSource('hiking-trails', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: trailFeatures
+        }
+      });
+      
+      map.addLayer({
+        id: 'hiking-trails',
+        type: 'line',
+        source: 'hiking-trails',
+        paint: {
+          'line-color': [
+            'case',
+            ['==', ['get', 'sac_scale'], 'hiking'], '#4CAF50',
+            ['==', ['get', 'sac_scale'], 'mountain_hiking'], '#FF9800',
+            ['==', ['get', 'sac_scale'], 'demanding_mountain_hiking'], '#F44336',
+            ['==', ['get', 'sac_scale'], 'alpine_hiking'], '#9C27B0',
+            ['==', ['get', 'sac_scale'], 'demanding_alpine_hiking'], '#E91E63',
+            ['==', ['get', 'sac_scale'], 'difficult_alpine_hiking'], '#000000',
+            '#2196F3' // default color
+          ],
+          'line-width': [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            10, 1,
+            15, 3
+          ],
+          'line-opacity': 0.8
+        }
+      });
+    }
+    
+    // Add hut markers
+    hutNodes.forEach(hut => {
+      const name = hut.tags?.name || '山小屋';
+      const type = hut.tags?.tourism === 'alpine_hut' ? 'alpine_hut' : 
+                   hut.tags?.tourism === 'wilderness_hut' ? 'wilderness_hut' : 'shelter';
+      
+      const marker = new maplibregl.Marker({
+        color: type === 'alpine_hut' ? '#8B4513' : type === 'wilderness_hut' ? '#654321' : '#A0522D',
+        scale: 0.9
+      })
+        .setLngLat([hut.lon, hut.lat])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 })
+            .setHTML(`
+              <div style="padding: 10px;">
+                <strong>${name}</strong><br>
+                <span style="color: #666;">
+                  ${type === 'alpine_hut' ? '山小屋' : 
+                    type === 'wilderness_hut' ? '避難小屋' : 'シェルター'}
+                </span>
+              </div>
+            `)
+        );
+      
+      hutMarkers.push(marker);
+      marker.addTo(map);
+    });
+    
+    // Add water source markers
+    waterNodes.forEach(water => {
+      const name = water.tags?.name || '';
+      const type = water.tags?.natural === 'spring' ? 'spring' : 
+                   water.tags?.amenity === 'drinking_water' ? 'drinking_water' : 'well';
+      
+      // Create custom water icon
+      const waterIcon = document.createElement('div');
+      waterIcon.style.cssText = `
+        width: 20px;
+        height: 20px;
+        background-color: #2196F3;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+      `;
+      waterIcon.textContent = type === 'spring' ? '💧' : type === 'drinking_water' ? '🚰' : '🏗️';
+      
+      const marker = new maplibregl.Marker({
+        element: waterIcon
+      })
+        .setLngLat([water.lon, water.lat])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 })
+            .setHTML(`
+              <div style="padding: 10px;">
+                <strong>${name || '水場'}</strong><br>
+                <span style="color: #666;">
+                  ${type === 'spring' ? '湧き水' : 
+                    type === 'drinking_water' ? '給水設備' : '井戸'}
+                </span>
+              </div>
+            `)
+        );
+      
+      waterMarkers.push(marker);
+      marker.addTo(map);
+    });
+    
+    // Add trailhead markers
+    trailheadNodes.forEach(trailhead => {
+      const name = trailhead.tags?.name || '登山口';
+      
+      // Create custom trailhead icon
+      const trailheadIcon = document.createElement('div');
+      trailheadIcon.style.cssText = `
+        width: 24px;
+        height: 24px;
+        background-color: #4CAF50;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+      `;
+      trailheadIcon.textContent = '🚶';
+      
+      const marker = new maplibregl.Marker({
+        element: trailheadIcon
+      })
+        .setLngLat([trailhead.lon, trailhead.lat])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 })
+            .setHTML(`
+              <div style="padding: 10px;">
+                <strong>${name}</strong><br>
+                <span style="color: #666;">登山口</span>
+              </div>
+            `)
+        );
+      
+      trailheadMarkers.push(marker);
+      marker.addTo(map);
+    });
+    
+    // Add parking markers (both nodes and ways)
+    [...parkingNodes, ...parkingWays].forEach(parking => {
+      const name = parking.tags?.name || '駐車場';
+      const capacity = parking.tags?.capacity || '';
+      const fee = parking.tags?.fee || '';
+      const access = parking.tags?.access || '';
+      
+      // Calculate center point for parking areas (ways)
+      let lon, lat;
+      if (parking.type === 'way' && parking.geometry) {
+        // Calculate centroid of parking area
+        const coords = parking.geometry;
+        lon = coords.reduce((sum, coord) => sum + coord.lon, 0) / coords.length;
+        lat = coords.reduce((sum, coord) => sum + coord.lat, 0) / coords.length;
+      } else {
+        lon = parking.lon;
+        lat = parking.lat;
+      }
+      
+      // Create custom parking icon
+      const parkingIcon = document.createElement('div');
+      parkingIcon.style.cssText = `
+        width: 24px;
+        height: 24px;
+        background-color: #2196F3;
+        border: 2px solid #fff;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 12px;
+        font-weight: bold;
+      `;
+      parkingIcon.textContent = 'P';
+      
+      const marker = new maplibregl.Marker({
+        element: parkingIcon
+      })
+        .setLngLat([lon, lat])
+        .setPopup(
+          new maplibregl.Popup({ offset: 25 })
+            .setHTML(`
+              <div style="padding: 10px;">
+                <strong>${name}</strong><br>
+                <span style="color: #666;">駐車場</span>
+                ${capacity ? `<br>収容台数: ${capacity}台` : ''}
+                ${fee ? `<br>料金: ${fee === 'yes' ? '有料' : fee === 'no' ? '無料' : fee}` : ''}
+                ${access ? `<br>アクセス: ${access === 'permissive' ? '一般開放' : access}` : ''}
+              </div>
+            `)
+        );
+      
+      parkingMarkers.push(marker);
+      marker.addTo(map);
+    });
+    
+    console.log(`Loaded ${trailFeatures.length} trails, ${hutNodes.length} huts, ${waterNodes.length} water sources, ${trailheadNodes.length} trailheads, and ${parkingNodes.length + parkingWays.length} parking areas from OpenStreetMap`);
+    
+  } catch (error) {
+    console.error('Error loading hiking data:', error);
+  }
+}
 
 // Load mountains from OpenStreetMap Overpass API
 async function loadMountains() {
@@ -253,15 +818,35 @@ async function loadMountains() {
   }
 }
 
-// Add click event to show elevation
+// Add click event to show elevation and weather
 map.on('click', async (e) => {
   const { lng, lat } = e.lngLat;
   
   // Get elevation from terrain
   const elevation = map.queryTerrainElevation([lng, lat]);
   
+  // Get weather data for clicked location
+  const weatherData = await getWeatherData(lat, lng);
+  
+  let weatherInfo = '';
+  if (weatherData) {
+    const weather = weatherData.weather[0];
+    const temp = weatherData.main.temp;
+    const windSpeed = weatherData.wind.speed;
+    const windDir = getWindDirection(weatherData.wind.deg);
+    
+    weatherInfo = `
+      <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
+      <strong>天気情報</strong><br>
+      ${getWeatherEmoji(weather.main)} ${weather.description}<br>
+      気温: ${temp}°C<br>
+      風: ${windSpeed}m/s ${windDir}<br>
+      <span style="font-size: 0.8em; color: #4CAF50;">✅ リアルタイムデータ</span>
+    `;
+  }
+  
   if (elevation !== null) {
-    // Create popup with elevation info
+    // Create popup with elevation and weather info
     new maplibregl.Popup()
       .setLngLat([lng, lat])
       .setHTML(`
@@ -272,6 +857,7 @@ map.on('click', async (e) => {
             緯度: ${lat.toFixed(5)}<br>
             経度: ${lng.toFixed(5)}
           </span>
+          ${weatherInfo}
         </div>
       `)
       .addTo(map);
