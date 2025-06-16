@@ -604,10 +604,22 @@ async function loadMountains() {
         
         // Only show mountains with elevation > 500m and have a name
         if (elevation && elevation > 500 && name) {
-          // Create marker
+          // Create custom mountain icon
+          const mountainIcon = document.createElement('div');
+          mountainIcon.style.cssText = `
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 20px solid #4CAF50;
+            position: relative;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+          `;
+          
+          // Create marker with custom icon
           const marker = new maplibregl.Marker({
-            color: '#8B4513',
-            scale: 0.5
+            element: mountainIcon,
+            anchor: 'bottom'
           })
             .setLngLat([mountain.lon, mountain.lat])
             .setPopup(
@@ -634,7 +646,7 @@ async function loadMountains() {
               border-radius: 3px;
               font-size: 11px;
               font-weight: bold;
-              color: #8B4513;
+              color: #2E7D32;
               box-shadow: 0 1px 3px rgba(0,0,0,0.3);
               pointer-events: none;
               white-space: nowrap;
@@ -673,9 +685,21 @@ async function loadMountains() {
     fallbackMountains.forEach(mountain => {
       const bounds = map.getBounds();
       if (bounds.contains(mountain.coords)) {
+        // Create custom mountain icon
+        const mountainIcon = document.createElement('div');
+        mountainIcon.style.cssText = `
+          width: 0;
+          height: 0;
+          border-left: 12px solid transparent;
+          border-right: 12px solid transparent;
+          border-bottom: 20px solid #4CAF50;
+          position: relative;
+          filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        `;
+        
         const marker = new maplibregl.Marker({
-          color: '#8B4513',
-          scale: 0.5
+          element: mountainIcon,
+          anchor: 'bottom'
         })
           .setLngLat(mountain.coords)
           .setPopup(
