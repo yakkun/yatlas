@@ -46,7 +46,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 map.addControl(new maplibregl.TerrainControl({
   source: 'gsi-terrain',
-  exaggeration: 1.3
+  exaggeration: 0.8
 }), 'top-right');
 
 // Add contour line toggle control
@@ -313,7 +313,7 @@ map.on('load', () => {
   // Enable 3D terrain
   map.setTerrain({
     source: 'gsi-terrain',
-    exaggeration: 1.3 // Moderate exaggeration for better terrain visibility
+    exaggeration: 0.8 // Reduced exaggeration for smoother terrain
   });
 
   // Add hillshade layer for smoother shading
@@ -334,7 +334,7 @@ map.on('load', () => {
       'hillshade-shadow-color': '#473B24',
       'hillshade-highlight-color': '#FAFAFF',
       'hillshade-accent-color': '#595959',
-      'hillshade-exaggeration': 0.5,
+      'hillshade-exaggeration': 0.3,
       'hillshade-illumination-direction': 315,
       'hillshade-illumination-anchor': 'viewport'
     }
