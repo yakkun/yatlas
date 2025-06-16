@@ -326,6 +326,101 @@ class RiverControl {
 
 map.addControl(new RiverControl(), 'top-right');
 
+// Weather API configuration for popup display only
+const WEATHER_API_URL = 'https://api.open-meteo.com/v1';
+
+// Get weather data for popup display
+async function getWeatherData(lat, lon) {
+  try {
+    const response = await fetch(
+      `${WEATHER_API_URL}/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Convert Open-Meteo data to our format
+    const current = data.current;
+    const weatherCode = current.weather_code;
+    
+    // Convert WMO weather codes to descriptions
+    const weatherInfo = getWeatherFromCode(weatherCode);
+    
+    return {
+      name: "現在地",
+      main: {
+        temp: Math.round(current.temperature_2m),
+        feels_like: Math.round(current.apparent_temperature),
+        humidity: current.relative_humidity_2m,
+        pressure: Math.round(current.pressure_msl || current.surface_pressure)
+      },
+      weather: [{
+        main: weatherInfo.main,
+        description: weatherInfo.description,
+        icon: weatherInfo.icon
+      }],
+      wind: {
+        speed: Math.round(current.wind_speed_10m * 10) / 10,
+        deg: current.wind_direction_10m
+      },
+      cloud_cover: current.cloud_cover,
+      precipitation: current.precipitation || 0
+    };
+  } catch (error) {
+    console.error('Weather API error:', error);
+    return null;
+  }
+}
+
+// Convert WMO weather codes to weather information
+function getWeatherFromCode(code) {
+  const weatherCodes = {
+    0: { main: 'Clear', description: '晴れ', icon: '01d' },
+    1: { main: 'Clear', description: 'ほぼ晴れ', icon: '02d' },
+    2: { main: 'Clouds', description: '曇り', icon: '03d' },
+    3: { main: 'Clouds', description: '曇り', icon: '04d' },
+    45: { main: 'Fog', description: '霧', icon: '50d' },
+    48: { main: 'Fog', description: '着氷霧', icon: '50d' },
+    51: { main: 'Drizzle', description: '軽い霧雨', icon: '09d' },
+    53: { main: 'Drizzle', description: '霧雨', icon: '09d' },
+    55: { main: 'Drizzle', description: '強い霧雨', icon: '09d' },
+    61: { main: 'Rain', description: '軽い雨', icon: '10d' },
+    63: { main: 'Rain', description: '雨', icon: '10d' },
+    65: { main: 'Rain', description: '強い雨', icon: '10d' },
+    71: { main: 'Snow', description: '軽い雪', icon: '13d' },
+    73: { main: 'Snow', description: '雪', icon: '13d' },
+    75: { main: 'Snow', description: '大雪', icon: '13d' },
+    95: { main: 'Thunderstorm', description: '雷雨', icon: '11d' },
+    96: { main: 'Thunderstorm', description: '雹を伴う雷雨', icon: '11d' },
+    99: { main: 'Thunderstorm', description: '大粒の雹を伴う雷雨', icon: '11d' }
+  };
+  
+  return weatherCodes[code] || { main: 'Unknown', description: '不明', icon: '01d' };
+}
+
+// Get wind direction text
+function getWindDirection(deg) {
+  const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+  return directions[Math.round(deg / 22.5) % 16];
+}
+
+// Get weather icon emoji
+function getWeatherEmoji(weatherMain) {
+  const emojiMap = {
+    'Clear': '☀️',
+    'Clouds': '☁️',
+    'Rain': '🌧️',
+    'Snow': '❄️',
+    'Drizzle': '🌦️',
+    'Thunderstorm': '⛈️',
+    'Mist': '🌫️',
+    'Fog': '🌫️'
+  };
+  return emojiMap[weatherMain] || '🌤️';
+}
 
 
 // Add terrain source and enable 3D terrain
