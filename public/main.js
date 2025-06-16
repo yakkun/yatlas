@@ -93,27 +93,44 @@ class ContourControl {
 
 map.addControl(new ContourControl(), 'top-right');
 
-// Add terrain exaggeration control
+// Add vertical terrain exaggeration control
 class TerrainExaggerationControl {
   onAdd(map) {
     this._map = map;
     this._container = document.createElement('div');
-    this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    this._container.className = 'maplibregl-ctrl';
     this._container.style.cssText = `
-      background: white;
+      background: rgba(255, 255, 255, 0.9);
       border-radius: 4px;
-      box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
-      padding: 8px;
-      min-width: 200px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.15);
+      padding: 10px;
+      height: 200px;
+      width: 50px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
     `;
     
     const label = document.createElement('div');
-    label.textContent = '地形の高さ';
+    label.textContent = '地形';
     label.style.cssText = `
-      font-size: 12px;
+      font-size: 11px;
       font-weight: bold;
-      margin-bottom: 5px;
       color: #333;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      margin-bottom: 8px;
+    `;
+    
+    const sliderContainer = document.createElement('div');
+    sliderContainer.style.cssText = `
+      flex: 1;
+      position: relative;
+      width: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     `;
     
     this._slider = document.createElement('input');
@@ -123,8 +140,11 @@ class TerrainExaggerationControl {
     this._slider.step = '0.1';
     this._slider.value = '0.3';
     this._slider.style.cssText = `
-      width: 100%;
-      margin: 5px 0;
+      width: 150px;
+      transform: rotate(-90deg);
+      transform-origin: center;
+      position: absolute;
+      cursor: pointer;
     `;
     
     this._valueLabel = document.createElement('div');
@@ -132,7 +152,7 @@ class TerrainExaggerationControl {
     this._valueLabel.style.cssText = `
       font-size: 11px;
       color: #666;
-      text-align: center;
+      margin-top: 8px;
     `;
     
     this._slider.addEventListener('input', (e) => {
@@ -147,12 +167,13 @@ class TerrainExaggerationControl {
       
       // Update hillshade exaggeration proportionally
       if (this._map.getLayer('hills')) {
-        this._map.setPaintProperty('hills', 'hillshade-exaggeration', value * 1.0); // 0.3/0.3 = 1.0
+        this._map.setPaintProperty('hills', 'hillshade-exaggeration', value * 1.0);
       }
     });
     
+    sliderContainer.appendChild(this._slider);
     this._container.appendChild(label);
-    this._container.appendChild(this._slider);
+    this._container.appendChild(sliderContainer);
     this._container.appendChild(this._valueLabel);
     
     return this._container;
@@ -164,7 +185,7 @@ class TerrainExaggerationControl {
   }
 }
 
-map.addControl(new TerrainExaggerationControl(), 'top-right');
+map.addControl(new TerrainExaggerationControl(), 'bottom-right');
 
 // Add river/stream emphasis control
 class RiverControl {
