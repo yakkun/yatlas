@@ -623,7 +623,10 @@ async function loadMountains() {
           })
             .setLngLat([mountain.lon, mountain.lat])
             .setPopup(
-              new maplibregl.Popup({ offset: 25 })
+              new maplibregl.Popup({ 
+                offset: [0, -20],
+                anchor: 'bottom'
+              })
                 .setHTML(`
                   <div style="padding: 10px;">
                     <strong>${name}</strong><br>
@@ -658,7 +661,7 @@ async function loadMountains() {
             const labelMarker = new maplibregl.Marker({
               element: el,
               anchor: 'bottom',
-              offset: [0, -30]
+              offset: [0, -25]
             })
               .setLngLat([mountain.lon, mountain.lat]);
             
@@ -703,7 +706,10 @@ async function loadMountains() {
         })
           .setLngLat(mountain.coords)
           .setPopup(
-            new maplibregl.Popup({ offset: 25 })
+            new maplibregl.Popup({ 
+              offset: [0, -20],
+              anchor: 'bottom'
+            })
               .setHTML(`
                 <div style="padding: 10px;">
                   <strong>${mountain.name}</strong><br>
