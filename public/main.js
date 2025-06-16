@@ -799,11 +799,14 @@ async function getElevation(lng, lat) {
 
 // Add click event to show elevation and weather
 map.on('click', async (e) => {
-  // Check if there's already an open popup (from marker click)
-  const popups = document.getElementsByClassName('maplibregl-popup');
-  if (popups.length > 0) {
-    // There's already a popup, likely from a marker
-    return;
+  // Check if click target is a marker element
+  let target = e.originalEvent.target;
+  while (target && target !== document.body) {
+    if (target.classList && (target.classList.contains('maplibregl-marker') || target.parentElement?.classList.contains('maplibregl-marker'))) {
+      // Click was on a marker, don't show elevation popup
+      return;
+    }
+    target = target.parentElement;
   }
   
   const { lng, lat } = e.lngLat;
