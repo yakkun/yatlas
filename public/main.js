@@ -463,12 +463,8 @@ window.addEventListener('popstate', () => {
 });
 
 let mountainMarkers = [];
-let hutMarkers = [];
-let waterMarkers = [];
-let trailheadMarkers = [];
-let parkingMarkers = [];
 
-// Load hiking trails and huts from OpenStreetMap
+// Load hiking trails from OpenStreetMap
 async function loadHikingData() {
   try {
     const bounds = map.getBounds();
@@ -480,16 +476,6 @@ async function loadHikingData() {
         way["highway"="path"]["sac_scale"](${bbox});
         way["highway"="track"]["sac_scale"](${bbox});
         way["highway"="footway"]["sac_scale"](${bbox});
-        node["tourism"="alpine_hut"](${bbox});
-        node["amenity"="shelter"]["shelter_type"="basic_hut"](${bbox});
-        node["tourism"="wilderness_hut"](${bbox});
-        node["natural"="spring"](${bbox});
-        node["amenity"="drinking_water"](${bbox});
-        node["man_made"="water_well"](${bbox});
-        node["highway"="trailhead"](${bbox});
-        node["amenity"="parking"]["hiking"="yes"](${bbox});
-        node["amenity"="parking"]["access"="permissive"](${bbox});
-        way["amenity"="parking"]["hiking"="yes"](${bbox});
       );
       out geom;
     `;
@@ -514,60 +500,23 @@ async function loadHikingData() {
       map.removeSource('hiking-trails');
     }
     
-    // Clear existing markers
-    hutMarkers.forEach(marker => marker.remove());
-    hutMarkers = [];
-    waterMarkers.forEach(marker => marker.remove());
-    waterMarkers = [];
-    trailheadMarkers.forEach(marker => marker.remove());
-    trailheadMarkers = [];
-    parkingMarkers.forEach(marker => marker.remove());
-    parkingMarkers = [];
-    
     // Process trails
     const trailFeatures = [];
-    const hutNodes = [];
-    const waterNodes = [];
-    const trailheadNodes = [];
-    const parkingNodes = [];
-    const parkingWays = [];
     
     data.elements.forEach(element => {
-      if (element.type === 'way' && element.geometry) {
-        // Check if this is a trail or parking area
-        if (element.tags?.highway && element.tags?.sac_scale) {
-          // This is a trail
-          const sacScale = element.tags.sac_scale || 'hiking';
-          trailFeatures.push({
-            type: 'Feature',
-            geometry: {
-              type: 'LineString',
-              coordinates: element.geometry.map(coord => [coord.lon, coord.lat])
-            },
-            properties: {
-              sac_scale: sacScale,
-              name: element.tags?.name || ''
-            }
-          });
-        } else if (element.tags?.amenity === 'parking') {
-          // This is a parking area
-          parkingWays.push(element);
-        }
-      } else if (element.type === 'node' && element.lat && element.lon) {
-        // Check node type
-        if (element.tags?.tourism === 'alpine_hut' || 
-            element.tags?.tourism === 'wilderness_hut' || 
-            element.tags?.amenity === 'shelter') {
-          hutNodes.push(element);
-        } else if (element.tags?.natural === 'spring' || 
-                   element.tags?.amenity === 'drinking_water' || 
-                   element.tags?.man_made === 'water_well') {
-          waterNodes.push(element);
-        } else if (element.tags?.highway === 'trailhead') {
-          trailheadNodes.push(element);
-        } else if (element.tags?.amenity === 'parking') {
-          parkingNodes.push(element);
-        }
+      if (element.type === 'way' && element.geometry && element.tags?.highway && element.tags?.sac_scale) {
+        const sacScale = element.tags.sac_scale || 'hiking';
+        trailFeatures.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: element.geometry.map(coord => [coord.lon, coord.lat])
+          },
+          properties: {
+            sac_scale: sacScale,
+            name: element.tags?.name || ''
+          }
+        });
       }
     });
     
@@ -608,178 +557,7 @@ async function loadHikingData() {
       });
     }
     
-    // Add hut markers
-    hutNodes.forEach(hut => {
-      const name = hut.tags?.name || '山小屋';
-      const type = hut.tags?.tourism === 'alpine_hut' ? 'alpine_hut' : 
-                   hut.tags?.tourism === 'wilderness_hut' ? 'wilderness_hut' : 'shelter';
-      
-      const marker = new maplibregl.Marker({
-        color: type === 'alpine_hut' ? '#8B4513' : type === 'wilderness_hut' ? '#654321' : '#A0522D',
-        scale: 0.9
-      })
-        .setLngLat([hut.lon, hut.lat])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25 })
-            .setHTML(`
-              <div style="padding: 10px;">
-                <strong>${name}</strong><br>
-                <span style="color: #666;">
-                  ${type === 'alpine_hut' ? '山小屋' : 
-                    type === 'wilderness_hut' ? '避難小屋' : 'シェルター'}
-                </span>
-              </div>
-            `)
-        );
-      
-      hutMarkers.push(marker);
-      marker.addTo(map);
-    });
-    
-    // Add water source markers
-    waterNodes.forEach(water => {
-      const name = water.tags?.name || '';
-      const type = water.tags?.natural === 'spring' ? 'spring' : 
-                   water.tags?.amenity === 'drinking_water' ? 'drinking_water' : 'well';
-      
-      // Create custom water icon
-      const waterIcon = document.createElement('div');
-      waterIcon.style.cssText = `
-        width: 20px;
-        height: 20px;
-        background-color: #2196F3;
-        border: 2px solid #fff;
-        border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 12px;
-        font-weight: bold;
-      `;
-      waterIcon.textContent = type === 'spring' ? '💧' : type === 'drinking_water' ? '🚰' : '🏗️';
-      
-      const marker = new maplibregl.Marker({
-        element: waterIcon
-      })
-        .setLngLat([water.lon, water.lat])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25 })
-            .setHTML(`
-              <div style="padding: 10px;">
-                <strong>${name || '水場'}</strong><br>
-                <span style="color: #666;">
-                  ${type === 'spring' ? '湧き水' : 
-                    type === 'drinking_water' ? '給水設備' : '井戸'}
-                </span>
-              </div>
-            `)
-        );
-      
-      waterMarkers.push(marker);
-      marker.addTo(map);
-    });
-    
-    // Add trailhead markers
-    trailheadNodes.forEach(trailhead => {
-      const name = trailhead.tags?.name || '登山口';
-      
-      // Create custom trailhead icon
-      const trailheadIcon = document.createElement('div');
-      trailheadIcon.style.cssText = `
-        width: 24px;
-        height: 24px;
-        background-color: #4CAF50;
-        border: 2px solid #fff;
-        border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 14px;
-        font-weight: bold;
-      `;
-      trailheadIcon.textContent = '🚶';
-      
-      const marker = new maplibregl.Marker({
-        element: trailheadIcon
-      })
-        .setLngLat([trailhead.lon, trailhead.lat])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25 })
-            .setHTML(`
-              <div style="padding: 10px;">
-                <strong>${name}</strong><br>
-                <span style="color: #666;">登山口</span>
-              </div>
-            `)
-        );
-      
-      trailheadMarkers.push(marker);
-      marker.addTo(map);
-    });
-    
-    // Add parking markers (both nodes and ways)
-    [...parkingNodes, ...parkingWays].forEach(parking => {
-      const name = parking.tags?.name || '駐車場';
-      const capacity = parking.tags?.capacity || '';
-      const fee = parking.tags?.fee || '';
-      const access = parking.tags?.access || '';
-      
-      // Calculate center point for parking areas (ways)
-      let lon, lat;
-      if (parking.type === 'way' && parking.geometry) {
-        // Calculate centroid of parking area
-        const coords = parking.geometry;
-        lon = coords.reduce((sum, coord) => sum + coord.lon, 0) / coords.length;
-        lat = coords.reduce((sum, coord) => sum + coord.lat, 0) / coords.length;
-      } else {
-        lon = parking.lon;
-        lat = parking.lat;
-      }
-      
-      // Create custom parking icon
-      const parkingIcon = document.createElement('div');
-      parkingIcon.style.cssText = `
-        width: 24px;
-        height: 24px;
-        background-color: #2196F3;
-        border: 2px solid #fff;
-        border-radius: 4px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-size: 12px;
-        font-weight: bold;
-      `;
-      parkingIcon.textContent = 'P';
-      
-      const marker = new maplibregl.Marker({
-        element: parkingIcon
-      })
-        .setLngLat([lon, lat])
-        .setPopup(
-          new maplibregl.Popup({ offset: 25 })
-            .setHTML(`
-              <div style="padding: 10px;">
-                <strong>${name}</strong><br>
-                <span style="color: #666;">駐車場</span>
-                ${capacity ? `<br>収容台数: ${capacity}台` : ''}
-                ${fee ? `<br>料金: ${fee === 'yes' ? '有料' : fee === 'no' ? '無料' : fee}` : ''}
-                ${access ? `<br>アクセス: ${access === 'permissive' ? '一般開放' : access}` : ''}
-              </div>
-            `)
-        );
-      
-      parkingMarkers.push(marker);
-      marker.addTo(map);
-    });
-    
-    console.log(`Loaded ${trailFeatures.length} trails, ${hutNodes.length} huts, ${waterNodes.length} water sources, ${trailheadNodes.length} trailheads, and ${parkingNodes.length + parkingWays.length} parking areas from OpenStreetMap`);
+    console.log(`Loaded ${trailFeatures.length} trails from OpenStreetMap`);
     
   } catch (error) {
     console.error('Error loading hiking data:', error);
@@ -829,7 +607,7 @@ async function loadMountains() {
           // Create marker
           const marker = new maplibregl.Marker({
             color: '#8B4513',
-            scale: 0.8
+            scale: 0.5
           })
             .setLngLat([mountain.lon, mountain.lat])
             .setPopup(
@@ -896,7 +674,8 @@ async function loadMountains() {
       const bounds = map.getBounds();
       if (bounds.contains(mountain.coords)) {
         const marker = new maplibregl.Marker({
-          color: '#8B4513'
+          color: '#8B4513',
+          scale: 0.5
         })
           .setLngLat(mountain.coords)
           .setPopup(
