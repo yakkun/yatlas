@@ -136,8 +136,8 @@ class TerrainExaggerationControl {
     this._slider = document.createElement('input');
     this._slider.type = 'range';
     this._slider.min = '0';
-    this._slider.max = '2';
-    this._slider.step = '0.1';
+    this._slider.max = '1';
+    this._slider.step = '0.05';
     this._slider.value = '0.3';
     this._slider.style.cssText = `
       width: 150px;
@@ -148,7 +148,7 @@ class TerrainExaggerationControl {
     `;
     
     this._valueLabel = document.createElement('div');
-    this._valueLabel.textContent = '0.3x';
+    this._valueLabel.textContent = '0.30x';
     this._valueLabel.style.cssText = `
       font-size: 11px;
       color: #666;
@@ -157,7 +157,7 @@ class TerrainExaggerationControl {
     
     this._slider.addEventListener('input', (e) => {
       const value = parseFloat(e.target.value);
-      this._valueLabel.textContent = `${value}x`;
+      this._valueLabel.textContent = `${value.toFixed(2)}x`;
       
       // Update terrain exaggeration
       this._map.setTerrain({
