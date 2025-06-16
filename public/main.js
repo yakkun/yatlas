@@ -45,6 +45,16 @@ const map = new maplibregl.Map({
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+// Add geolocation control
+map.addControl(new maplibregl.GeolocateControl({
+  positionOptions: {
+    enableHighAccuracy: true
+  },
+  trackUserLocation: true,
+  showUserHeading: true,
+  showAccuracyCircle: true
+}), 'top-right');
+
 // Add contour line toggle control
 class ContourControl {
   onAdd(map) {

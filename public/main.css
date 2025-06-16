@@ -79,3 +79,63 @@ button {
     min-width: 44px;
   }
 }
+
+/* Custom style for user location marker */
+.maplibregl-user-location-dot {
+  background-color: #007cbf;
+  width: 15px;
+  height: 15px;
+  border: 3px solid white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(0, 124, 191, 0.5);
+}
+
+/* Pulsing effect for location marker */
+.maplibregl-user-location-dot::before {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  border: 2px solid #007cbf;
+  opacity: 0;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Style for accuracy circle */
+.maplibregl-user-location-accuracy-circle {
+  background-color: rgba(0, 124, 191, 0.1);
+  border: 1px solid rgba(0, 124, 191, 0.3);
+}
+
+/* Style for heading indicator */
+.maplibregl-user-location-heading {
+  background-color: transparent;
+}
+
+.maplibregl-user-location-heading::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 15px solid #007cbf;
+  opacity: 0.8;
+}
