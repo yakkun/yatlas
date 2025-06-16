@@ -44,10 +44,6 @@ const map = new maplibregl.Map({
 });
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
-map.addControl(new maplibregl.TerrainControl({
-  source: 'gsi-terrain',
-  exaggeration: 0.8
-}), 'top-right');
 
 // Add contour line toggle control
 class ContourControl {
@@ -86,6 +82,79 @@ class ContourControl {
 }
 
 map.addControl(new ContourControl(), 'top-right');
+
+// Add terrain exaggeration control
+class TerrainExaggerationControl {
+  onAdd(map) {
+    this._map = map;
+    this._container = document.createElement('div');
+    this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    this._container.style.cssText = `
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+      padding: 8px;
+      min-width: 200px;
+    `;
+    
+    const label = document.createElement('div');
+    label.textContent = '地形の高さ';
+    label.style.cssText = `
+      font-size: 12px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #333;
+    `;
+    
+    this._slider = document.createElement('input');
+    this._slider.type = 'range';
+    this._slider.min = '0';
+    this._slider.max = '2';
+    this._slider.step = '0.1';
+    this._slider.value = '0.5';
+    this._slider.style.cssText = `
+      width: 100%;
+      margin: 5px 0;
+    `;
+    
+    this._valueLabel = document.createElement('div');
+    this._valueLabel.textContent = '0.5x';
+    this._valueLabel.style.cssText = `
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+    `;
+    
+    this._slider.addEventListener('input', (e) => {
+      const value = parseFloat(e.target.value);
+      this._valueLabel.textContent = `${value}x`;
+      
+      // Update terrain exaggeration
+      this._map.setTerrain({
+        source: 'gsi-terrain',
+        exaggeration: value
+      });
+      
+      // Update hillshade exaggeration proportionally
+      if (this._map.getLayer('hills')) {
+        this._map.setPaintProperty('hills', 'hillshade-exaggeration', value * 0.6); // 0.3/0.5 = 0.6
+      }
+    });
+    
+    this._container.appendChild(label);
+    this._container.appendChild(this._slider);
+    this._container.appendChild(this._valueLabel);
+    
+    return this._container;
+  }
+  
+  onRemove() {
+    this._container.parentNode.removeChild(this._container);
+    this._map = undefined;
+  }
+}
+
+map.addControl(new TerrainExaggerationControl(), 'top-right');
 
 // Weather API configuration (using completely free Open-Meteo API)
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1';
@@ -310,10 +379,10 @@ map.on('load', () => {
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
   });
 
-  // Enable 3D terrain
+  // Enable 3D terrain with minimal default exaggeration
   map.setTerrain({
     source: 'gsi-terrain',
-    exaggeration: 0.8 // Reduced exaggeration for smoother terrain
+    exaggeration: 0.5 // Much smoother default terrain
   });
 
   // Add hillshade layer for smoother shading
