@@ -649,23 +649,16 @@ async function loadMountains() {
             container.appendChild(icon);
           }
           
-          // Create marker with container
+          // Store mountain data in container
+          container.dataset.mountainName = name;
+          container.dataset.mountainElevation = elevation;
+          
+          // Create marker with container (no popup)
           const marker = new maplibregl.Marker({
             element: container,
             anchor: 'bottom'
           })
-            .setLngLat([mountain.lon, mountain.lat])
-            .setPopup(
-              new maplibregl.Popup({ 
-                offset: 25
-              })
-                .setHTML(`
-                  <div style="padding: 10px;">
-                    <strong>${name}</strong><br>
-                    標高: ${elevation} m
-                  </div>
-                `)
-            );
+            .setLngLat([mountain.lon, mountain.lat]);
           
           mountainMarkers.push(marker);
           marker.addTo(map);
@@ -728,22 +721,15 @@ async function loadMountains() {
         container.appendChild(icon);
         container.appendChild(label);
         
+        // Store mountain data in container
+        container.dataset.mountainName = mountain.name;
+        container.dataset.mountainElevation = mountain.elevation;
+        
         const marker = new maplibregl.Marker({
           element: container,
           anchor: 'bottom'
         })
-          .setLngLat(mountain.coords)
-          .setPopup(
-            new maplibregl.Popup({ 
-              offset: 25
-            })
-              .setHTML(`
-                <div style="padding: 10px;">
-                  <strong>${mountain.name}</strong><br>
-                  標高: ${mountain.elevation} m
-                </div>
-              `)
-          );
+          .setLngLat(mountain.coords);
         
         mountainMarkers.push(marker);
         marker.addTo(map);
@@ -799,17 +785,21 @@ async function getElevation(lng, lat) {
 
 // Add click event to show elevation and weather
 map.on('click', async (e) => {
-  // Check if click target is a marker element
+  const { lng, lat } = e.lngLat;
+  
+  // Check if click target is a mountain marker
+  let mountainInfo = null;
   let target = e.originalEvent.target;
   while (target && target !== document.body) {
-    if (target.classList && (target.classList.contains('maplibregl-marker') || target.parentElement?.classList.contains('maplibregl-marker'))) {
-      // Click was on a marker, don't show elevation popup
-      return;
+    if (target.dataset && target.dataset.mountainName) {
+      mountainInfo = {
+        name: target.dataset.mountainName,
+        elevation: target.dataset.mountainElevation
+      };
+      break;
     }
     target = target.parentElement;
   }
-  
-  const { lng, lat } = e.lngLat;
   
   // Show loading popup first
   const loadingPopup = new maplibregl.Popup()
@@ -856,8 +846,20 @@ map.on('click', async (e) => {
     elevationText = '取得できませんでした';
   }
   
+  // Add mountain info if clicking on a peak
+  let mountainInfoHtml = '';
+  if (mountainInfo) {
+    mountainInfoHtml = `
+      <div style="margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+        <strong style="color: #2E7D32;">🏔️ ${mountainInfo.name}</strong><br>
+        <span style="color: #666;">山頂標高: ${mountainInfo.elevation} m</span>
+      </div>
+    `;
+  }
+  
   loadingPopup.setHTML(`
     <div style="padding: 10px;">
+      ${mountainInfoHtml}
       <strong>標高</strong><br>
       ${elevationText}<br>
       <span style="font-size: 0.9em; color: #666;">
