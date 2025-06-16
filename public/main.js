@@ -95,9 +95,9 @@ class TerrainExaggerationControl {
     this._slider = document.createElement('input');
     this._slider.type = 'range';
     this._slider.min = '0';
-    this._slider.max = '2';
+    this._slider.max = '3';
     this._slider.step = '0.1';
-    this._slider.value = '0.2';
+    this._slider.value = '0.7';
     this._slider.style.cssText = `
       width: 150px;
       transform: rotate(-90deg);
@@ -107,7 +107,7 @@ class TerrainExaggerationControl {
     `;
     
     this._valueLabel = document.createElement('div');
-    this._valueLabel.textContent = '0.2x';
+    this._valueLabel.textContent = '0.7x';
     this._valueLabel.style.cssText = `
       font-size: 11px;
       color: #666;
@@ -550,10 +550,10 @@ map.on('load', () => {
     attribution: 'Mapzen terrain tiles'
   });
 
-  // Enable 3D terrain with minimal default exaggeration
+  // Enable 3D terrain with default exaggeration
   map.setTerrain({
     source: 'gsi-terrain',
-    exaggeration: 0.2 // Very smooth default terrain
+    exaggeration: 0.7 // Moderate default terrain
   });
 
   // Add hillshade layer for smoother shading
