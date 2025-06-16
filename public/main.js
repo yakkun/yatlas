@@ -55,48 +55,6 @@ map.addControl(new maplibregl.GeolocateControl({
   showAccuracyCircle: true
 }), 'top-right');
 
-// Add contour line toggle control
-class ContourControl {
-  onAdd(map) {
-    this._map = map;
-    this._container = document.createElement('div');
-    this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
-    
-    this._button = document.createElement('button');
-    this._button.type = 'button';
-    this._button.title = '陰影起伏図の表示切り替え';
-    this._button.style.cssText = `
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>');
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 16px;
-    `;
-    
-    this._button.addEventListener('click', () => {
-      const visibility = this._map.getLayoutProperty('contour-lines', 'visibility');
-      const newVisibility = visibility === 'visible' ? 'none' : 'visible';
-      this._map.setLayoutProperty('contour-lines', 'visibility', newVisibility);
-      
-      this._button.style.backgroundColor = newVisibility === 'visible' ? '#007cbf' : '';
-      this._button.style.color = newVisibility === 'visible' ? 'white' : '';
-      
-      // Adjust opacity based on visibility
-      if (this._map.getLayer('contour-lines')) {
-        this._map.setPaintProperty('contour-lines', 'raster-opacity', newVisibility === 'visible' ? 0.5 : 0);
-      }
-    });
-    
-    this._container.appendChild(this._button);
-    return this._container;
-  }
-  
-  onRemove() {
-    this._container.parentNode.removeChild(this._container);
-    this._map = undefined;
-  }
-}
-
-map.addControl(new ContourControl(), 'top-right');
 
 // Add vertical terrain exaggeration control
 class TerrainExaggerationControl {
@@ -614,26 +572,6 @@ map.on('load', () => {
     }
   });
 
-  // Add relief/slope shading from GSI as an alternative to contour lines
-  map.addSource('relief', {
-    type: 'raster',
-    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png'],
-    tileSize: 256,
-    maxzoom: 15,
-    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
-  });
-
-  map.addLayer({
-    id: 'contour-lines',
-    type: 'raster',
-    source: 'relief',
-    layout: {
-      visibility: 'none'  // Initially hidden
-    },
-    paint: {
-      'raster-opacity': 0.5
-    }
-  });
 
   // Load mountains and hiking data from OpenStreetMap
   loadMountains();
