@@ -306,7 +306,7 @@ map.on('load', () => {
     tiles: ['https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png'],
     tileSize: 256,
     maxzoom: 15,
-    encoding: 'terrarium',
+    encoding: 'mapbox',
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
   });
 
@@ -322,7 +322,7 @@ map.on('load', () => {
     tiles: ['https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png'],
     tileSize: 256,
     maxzoom: 15,
-    encoding: 'terrarium'
+    encoding: 'mapbox'
   });
 
   map.addLayer({
@@ -847,15 +847,74 @@ async function loadMountains() {
   }
 }
 
+// Get elevation from GSI elevation API
+async function getElevationFromAPI(lat, lng) {
+  try {
+    const response = await fetch(
+      `https://cyberjapandata2.gsi.go.jp/general/dem/scripts/getelevation.php?lon=${lng}&lat=${lat}&outtype=JSON`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Check if elevation data is valid
+    if (data.elevation && data.elevation !== 'e' && !isNaN(parseFloat(data.elevation))) {
+      return parseFloat(data.elevation);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Elevation API error:', error);
+    return null;
+  }
+}
+
+// Get elevation with fallback methods
+async function getElevation(lng, lat) {
+  // First try terrain elevation from map
+  let elevation = map.queryTerrainElevation([lng, lat]);
+  
+  // Validate terrain elevation (check for unrealistic values)
+  if (elevation !== null && elevation !== undefined && 
+      elevation > -500 && elevation < 10000) {
+    return Math.round(elevation);
+  }
+  
+  // Fallback to GSI elevation API
+  elevation = await getElevationFromAPI(lat, lng);
+  if (elevation !== null) {
+    return Math.round(elevation);
+  }
+  
+  return null;
+}
+
 // Add click event to show elevation and weather
 map.on('click', async (e) => {
   const { lng, lat } = e.lngLat;
   
-  // Get elevation from terrain
-  const elevation = map.queryTerrainElevation([lng, lat]);
+  // Show loading popup first
+  const loadingPopup = new maplibregl.Popup()
+    .setLngLat([lng, lat])
+    .setHTML(`
+      <div style="padding: 10px; text-align: center;">
+        <div>標高データを取得中...</div>
+        <div style="margin-top: 5px; font-size: 0.9em; color: #666;">
+          緯度: ${lat.toFixed(5)}<br>
+          経度: ${lng.toFixed(5)}
+        </div>
+      </div>
+    `)
+    .addTo(map);
   
-  // Get weather data for clicked location
-  const weatherData = await getWeatherData(lat, lng);
+  // Get elevation and weather data
+  const [elevation, weatherData] = await Promise.all([
+    getElevation(lng, lat),
+    getWeatherData(lat, lng)
+  ]);
   
   let weatherInfo = '';
   if (weatherData) {
@@ -874,21 +933,23 @@ map.on('click', async (e) => {
     `;
   }
   
+  // Update popup with elevation and weather info
+  let elevationText = '';
   if (elevation !== null) {
-    // Create popup with elevation and weather info
-    new maplibregl.Popup()
-      .setLngLat([lng, lat])
-      .setHTML(`
-        <div style="padding: 10px;">
-          <strong>標高</strong><br>
-          ${Math.round(elevation)} m<br>
-          <span style="font-size: 0.9em; color: #666;">
-            緯度: ${lat.toFixed(5)}<br>
-            経度: ${lng.toFixed(5)}
-          </span>
-          ${weatherInfo}
-        </div>
-      `)
-      .addTo(map);
+    elevationText = `${elevation} m`;
+  } else {
+    elevationText = '取得できませんでした';
   }
+  
+  loadingPopup.setHTML(`
+    <div style="padding: 10px;">
+      <strong>標高</strong><br>
+      ${elevationText}<br>
+      <span style="font-size: 0.9em; color: #666;">
+        緯度: ${lat.toFixed(5)}<br>
+        経度: ${lng.toFixed(5)}
+      </span>
+      ${weatherInfo}
+    </div>
+  `);
 });
