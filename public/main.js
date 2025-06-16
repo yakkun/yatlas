@@ -539,14 +539,15 @@ document.getElementById('refreshWeather').addEventListener('click', updateWeathe
 
 // Add terrain source and enable 3D terrain
 map.on('load', () => {
-  // Add GSI elevation tile source
+  // Try using a different elevation source that works better with MapLibre
+  // Using Mapzen/Amazon terrain tiles instead of GSI for now
   map.addSource('gsi-terrain', {
     type: 'raster-dem',
-    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png'],
+    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
     tileSize: 256,
     maxzoom: 15,
-    encoding: 'mapbox',
-    attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
+    encoding: 'terrarium',
+    attribution: 'Mapzen terrain tiles'
   });
 
   // Enable 3D terrain with minimal default exaggeration
@@ -558,10 +559,10 @@ map.on('load', () => {
   // Add hillshade layer for smoother shading
   map.addSource('hillshade', {
     type: 'raster-dem',
-    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png'],
+    tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
     tileSize: 256,
     maxzoom: 15,
-    encoding: 'mapbox'
+    encoding: 'terrarium'
   });
 
   map.addLayer({
