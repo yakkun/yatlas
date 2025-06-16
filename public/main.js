@@ -76,13 +76,9 @@ class TerrainExaggerationControl {
     `;
     
     const label = document.createElement('div');
-    label.textContent = '地形';
+    label.innerHTML = '🏔️';
     label.style.cssText = `
-      font-size: 11px;
-      font-weight: bold;
-      color: #333;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
+      font-size: 20px;
       margin-bottom: 8px;
     `;
     
@@ -101,7 +97,7 @@ class TerrainExaggerationControl {
     this._slider.min = '0';
     this._slider.max = '1';
     this._slider.step = '0.05';
-    this._slider.value = '0.3';
+    this._slider.value = '0.15';
     this._slider.style.cssText = `
       width: 150px;
       transform: rotate(-90deg);
@@ -111,11 +107,13 @@ class TerrainExaggerationControl {
     `;
     
     this._valueLabel = document.createElement('div');
-    this._valueLabel.textContent = '0.30x';
+    this._valueLabel.textContent = '0.15x';
     this._valueLabel.style.cssText = `
       font-size: 11px;
       color: #666;
       margin-top: 8px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
     `;
     
     this._slider.addEventListener('input', (e) => {
@@ -132,6 +130,15 @@ class TerrainExaggerationControl {
       if (this._map.getLayer('hills')) {
         this._map.setPaintProperty('hills', 'hillshade-exaggeration', value * 1.0);
       }
+    });
+    
+    // Show value label on hover
+    sliderContainer.addEventListener('mouseenter', () => {
+      this._valueLabel.style.opacity = '1';
+    });
+    
+    sliderContainer.addEventListener('mouseleave', () => {
+      this._valueLabel.style.opacity = '0';
     });
     
     sliderContainer.appendChild(this._slider);
@@ -545,7 +552,7 @@ map.on('load', () => {
   // Enable 3D terrain with minimal default exaggeration
   map.setTerrain({
     source: 'gsi-terrain',
-    exaggeration: 0.3 // Very smooth default terrain
+    exaggeration: 0.15 // Very smooth default terrain
   });
 
   // Add hillshade layer for smoother shading
