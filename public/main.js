@@ -168,7 +168,7 @@ class RiverControl {
     this._button.type = 'button';
     this._button.title = '川・沢筋の強調表示';
     this._button.style.cssText = `
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c-2 4-4 6-6 8s-4 4-4 6c0 4 4 6 10 6s10-2 10-6c0-2-2-4-4-6s-4-4-6-8z"/></svg>');
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12c3-3 6-3 10 0s7 3 10 0"/><path d="M2 8c3-3 6-3 10 0s7 3 10 0"/><path d="M2 16c3-3 6-3 10 0s7 3 10 0"/></svg>');
       background-repeat: no-repeat;
       background-position: center;
       background-size: 16px;
