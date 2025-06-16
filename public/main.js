@@ -775,18 +775,24 @@ async function getElevationFromAPI(lat, lng) {
 
 // Get elevation with fallback methods
 async function getElevation(lng, lat) {
-  // First try terrain elevation from map
-  let elevation = map.queryTerrainElevation([lng, lat]);
-  
-  // Validate terrain elevation (check for unrealistic values)
-  if (elevation !== null && elevation !== undefined && 
-      elevation > -500 && elevation < 10000) {
+  // First try GSI elevation API for accurate data
+  let elevation = await getElevationFromAPI(lat, lng);
+  if (elevation !== null) {
     return Math.round(elevation);
   }
   
-  // Fallback to GSI elevation API
-  elevation = await getElevationFromAPI(lat, lng);
-  if (elevation !== null) {
+  // Fallback to terrain elevation from map
+  elevation = map.queryTerrainElevation([lng, lat]);
+  
+  // Validate terrain elevation (check for unrealistic values)
+  if (elevation !== null && elevation !== undefined && 
+      elevation > -500 && elevation < 4000) { // Japan's highest is Mt. Fuji at 3776m
+    // Account for terrain exaggeration
+    const exaggeration = map.getTerrain()?.exaggeration || 1;
+    if (exaggeration !== 1) {
+      // Adjust for exaggeration
+      elevation = elevation / exaggeration;
+    }
     return Math.round(elevation);
   }
   
@@ -826,10 +832,15 @@ map.on('click', async (e) => {
     .addTo(map);
   
   // Get elevation and weather data
-  const [elevation, weatherData] = await Promise.all([
-    getElevation(lng, lat),
-    getWeatherData(lat, lng)
-  ]);
+  // If clicking on a mountain peak, use the mountain elevation
+  let elevation;
+  if (mountainInfo && mountainInfo.elevation) {
+    elevation = parseInt(mountainInfo.elevation);
+  } else {
+    elevation = await getElevation(lng, lat);
+  }
+  
+  const weatherData = await getWeatherData(lat, lng);
   
   let weatherInfo = '';
   if (weatherData) {
