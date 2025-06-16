@@ -111,14 +111,14 @@ class TerrainExaggerationControl {
     this._slider.min = '0';
     this._slider.max = '2';
     this._slider.step = '0.1';
-    this._slider.value = '0.5';
+    this._slider.value = '0.3';
     this._slider.style.cssText = `
       width: 100%;
       margin: 5px 0;
     `;
     
     this._valueLabel = document.createElement('div');
-    this._valueLabel.textContent = '0.5x';
+    this._valueLabel.textContent = '0.3x';
     this._valueLabel.style.cssText = `
       font-size: 11px;
       color: #666;
@@ -137,7 +137,7 @@ class TerrainExaggerationControl {
       
       // Update hillshade exaggeration proportionally
       if (this._map.getLayer('hills')) {
-        this._map.setPaintProperty('hills', 'hillshade-exaggeration', value * 0.6); // 0.3/0.5 = 0.6
+        this._map.setPaintProperty('hills', 'hillshade-exaggeration', value * 1.0); // 0.3/0.3 = 1.0
       }
     });
     
@@ -382,7 +382,7 @@ map.on('load', () => {
   // Enable 3D terrain with minimal default exaggeration
   map.setTerrain({
     source: 'gsi-terrain',
-    exaggeration: 0.5 // Much smoother default terrain
+    exaggeration: 0.3 // Very smooth default terrain
   });
 
   // Add hillshade layer for smoother shading
