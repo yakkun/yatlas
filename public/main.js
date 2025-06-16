@@ -604,28 +604,59 @@ async function loadMountains() {
         
         // Only show mountains with elevation > 500m and have a name
         if (elevation && elevation > 500 && name) {
-          // Create custom mountain icon
-          const mountainIcon = document.createElement('div');
-          mountainIcon.style.cssText = `
+          // Create container for mountain icon and label
+          const container = document.createElement('div');
+          container.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+          `;
+          
+          // Create mountain icon (green triangle)
+          const icon = document.createElement('div');
+          icon.style.cssText = `
             width: 0;
             height: 0;
-            border-left: 12px solid transparent;
-            border-right: 12px solid transparent;
-            border-bottom: 20px solid #4CAF50;
-            position: relative;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 14px solid #4CAF50;
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
           `;
           
-          // Create marker with custom icon
+          // Create label for mountains > 1500m
+          if (elevation > 1500) {
+            const label = document.createElement('div');
+            label.textContent = name;
+            label.style.cssText = `
+              background-color: rgba(255, 255, 255, 0.9);
+              padding: 2px 6px;
+              margin-top: 4px;
+              border-radius: 3px;
+              font-size: 11px;
+              font-weight: bold;
+              color: #2E7D32;
+              box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+              white-space: nowrap;
+              max-width: 100px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            `;
+            container.appendChild(icon);
+            container.appendChild(label);
+          } else {
+            container.appendChild(icon);
+          }
+          
+          // Create marker with container
           const marker = new maplibregl.Marker({
-            element: mountainIcon,
+            element: container,
             anchor: 'bottom'
           })
             .setLngLat([mountain.lon, mountain.lat])
             .setPopup(
               new maplibregl.Popup({ 
-                offset: [0, -20],
-                anchor: 'bottom'
+                offset: 25
               })
                 .setHTML(`
                   <div style="padding: 10px;">
@@ -637,37 +668,6 @@ async function loadMountains() {
           
           mountainMarkers.push(marker);
           marker.addTo(map);
-          
-          // Add mountain name label for high peaks
-          if (elevation > 1500) {
-            const el = document.createElement('div');
-            el.className = 'mountain-label';
-            el.textContent = name;
-            el.style.cssText = `
-              background-color: rgba(255, 255, 255, 0.9);
-              padding: 2px 6px;
-              border-radius: 3px;
-              font-size: 11px;
-              font-weight: bold;
-              color: #2E7D32;
-              box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-              pointer-events: none;
-              white-space: nowrap;
-              max-width: 100px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            `;
-
-            const labelMarker = new maplibregl.Marker({
-              element: el,
-              anchor: 'bottom',
-              offset: [0, -25]
-            })
-              .setLngLat([mountain.lon, mountain.lat]);
-            
-            mountainMarkers.push(labelMarker);
-            labelMarker.addTo(map);
-          }
         }
       }
     });
@@ -688,27 +688,52 @@ async function loadMountains() {
     fallbackMountains.forEach(mountain => {
       const bounds = map.getBounds();
       if (bounds.contains(mountain.coords)) {
-        // Create custom mountain icon
-        const mountainIcon = document.createElement('div');
-        mountainIcon.style.cssText = `
+        // Create container for mountain icon and label
+        const container = document.createElement('div');
+        container.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          cursor: pointer;
+        `;
+        
+        // Create mountain icon (green triangle)
+        const icon = document.createElement('div');
+        icon.style.cssText = `
           width: 0;
           height: 0;
-          border-left: 12px solid transparent;
-          border-right: 12px solid transparent;
-          border-bottom: 20px solid #4CAF50;
-          position: relative;
+          border-left: 8px solid transparent;
+          border-right: 8px solid transparent;
+          border-bottom: 14px solid #4CAF50;
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
         `;
         
+        // Create label
+        const label = document.createElement('div');
+        label.textContent = mountain.name;
+        label.style.cssText = `
+          background-color: rgba(255, 255, 255, 0.9);
+          padding: 2px 6px;
+          margin-top: 4px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-weight: bold;
+          color: #2E7D32;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+          white-space: nowrap;
+        `;
+        
+        container.appendChild(icon);
+        container.appendChild(label);
+        
         const marker = new maplibregl.Marker({
-          element: mountainIcon,
+          element: container,
           anchor: 'bottom'
         })
           .setLngLat(mountain.coords)
           .setPopup(
             new maplibregl.Popup({ 
-              offset: [0, -20],
-              anchor: 'bottom'
+              offset: 25
             })
               .setHTML(`
                 <div style="padding: 10px;">
