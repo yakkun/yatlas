@@ -208,39 +208,17 @@ class RiverControl {
   
   async loadRivers() {
     try {
-      const zoom = this._map.getZoom();
-      
-      // Only load rivers at higher zoom levels to avoid performance issues
-      if (zoom < 11) {
-        console.log('Zoom level too low for river display');
-        return;
-      }
-      
       const bounds = this._map.getBounds();
       const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
       
-      // Limit the query based on zoom level
-      let query;
-      if (zoom >= 13) {
-        // At high zoom, show both rivers and streams
-        query = `
-          [out:json][timeout:15];
-          (
-            way["waterway"="river"](${bbox});
-            way["waterway"="stream"](${bbox});
-          );
-          out geom;
-        `;
-      } else {
-        // At medium zoom, show only streams (typically smaller)
-        query = `
-          [out:json][timeout:15];
-          (
-            way["waterway"="stream"](${bbox});
-          );
-          out geom;
-        `;
-      }
+      const query = `
+        [out:json][timeout:25];
+        (
+          way["waterway"="river"](${bbox});
+          way["waterway"="stream"](${bbox});
+        );
+        out geom;
+      `;
       
       const response = await fetch('https://overpass-api.de/api/interpreter', {
         method: 'POST',
@@ -260,60 +238,15 @@ class RiverControl {
       const riverFeatures = [];
       
       data.elements.forEach(element => {
-        if (element.type === 'way' && element.geometry && element.geometry.length > 1) {
+        if (element.type === 'way' && element.geometry) {
           const waterway = element.tags?.waterway;
           const name = element.tags?.name || '';
-          
-          // Filter out extremely long features that might be coastlines or major rivers
-          const coordinates = element.geometry.map(coord => [coord.lon, coord.lat]);
-          
-          // Skip if too many points (likely a major river or coastline)
-          if (coordinates.length > 500) {
-            return;
-          }
-          
-          // Calculate approximate length to filter out very long features
-          let totalLength = 0;
-          for (let i = 1; i < coordinates.length; i++) {
-            const dx = coordinates[i][0] - coordinates[i-1][0];
-            const dy = coordinates[i][1] - coordinates[i-1][1];
-            totalLength += Math.sqrt(dx * dx + dy * dy);
-          }
-          
-          // Skip extremely long features (likely coastlines or major rivers)
-          // 0.1 degrees is roughly 11km, so skip anything longer than ~0.5 degrees
-          if (totalLength > 0.5) {
-            return;
-          }
-          
-          // Skip features that span too large an area (likely not mountain streams)
-          const bounds = coordinates.reduce((bounds, coord) => {
-            return {
-              minLon: Math.min(bounds.minLon, coord[0]),
-              maxLon: Math.max(bounds.maxLon, coord[0]),
-              minLat: Math.min(bounds.minLat, coord[1]),
-              maxLat: Math.max(bounds.maxLat, coord[1])
-            };
-          }, {
-            minLon: coordinates[0][0],
-            maxLon: coordinates[0][0],
-            minLat: coordinates[0][1],
-            maxLat: coordinates[0][1]
-          });
-          
-          const spanLon = bounds.maxLon - bounds.minLon;
-          const spanLat = bounds.maxLat - bounds.minLat;
-          
-          // Skip if spans too large an area (likely major rivers or coastlines)
-          if (spanLon > 0.3 || spanLat > 0.3) {
-            return;
-          }
           
           riverFeatures.push({
             type: 'Feature',
             geometry: {
               type: 'LineString',
-              coordinates: coordinates
+              coordinates: element.geometry.map(coord => [coord.lon, coord.lat])
             },
             properties: {
               waterway: waterway,
