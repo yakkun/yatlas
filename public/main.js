@@ -64,9 +64,9 @@ class ContourControl {
     
     this._button = document.createElement('button');
     this._button.type = 'button';
-    this._button.title = '等高線の表示切り替え';
+    this._button.title = '陰影起伏図の表示切り替え';
     this._button.style.cssText = `
-      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>');
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>');
       background-repeat: no-repeat;
       background-position: center;
       background-size: 16px;
@@ -79,6 +79,11 @@ class ContourControl {
       
       this._button.style.backgroundColor = newVisibility === 'visible' ? '#007cbf' : '';
       this._button.style.color = newVisibility === 'visible' ? 'white' : '';
+      
+      // Adjust opacity based on visibility
+      if (this._map.getLayer('contour-lines')) {
+        this._map.setPaintProperty('contour-lines', 'raster-opacity', newVisibility === 'visible' ? 0.5 : 0);
+      }
     });
     
     this._container.appendChild(this._button);
@@ -609,21 +614,24 @@ map.on('load', () => {
     }
   });
 
-  // Add contour lines from GSI
-  map.addSource('contour', {
+  // Add relief/slope shading from GSI as an alternative to contour lines
+  map.addSource('relief', {
     type: 'raster',
-    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/contour/{z}/{x}/{y}.png'],
+    tiles: ['https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png'],
     tileSize: 256,
-    maxzoom: 16,
+    maxzoom: 15,
     attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank">地理院タイル</a>'
   });
 
   map.addLayer({
     id: 'contour-lines',
     type: 'raster',
-    source: 'contour',
+    source: 'relief',
+    layout: {
+      visibility: 'none'  // Initially hidden
+    },
     paint: {
-      'raster-opacity': 0.6
+      'raster-opacity': 0.5
     }
   });
 
