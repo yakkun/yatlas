@@ -95,9 +95,9 @@ class TerrainExaggerationControl {
     this._slider = document.createElement('input');
     this._slider.type = 'range';
     this._slider.min = '0';
-    this._slider.max = '1';
-    this._slider.step = '0.05';
-    this._slider.value = '0.15';
+    this._slider.max = '2';
+    this._slider.step = '0.1';
+    this._slider.value = '0.2';
     this._slider.style.cssText = `
       width: 150px;
       transform: rotate(-90deg);
@@ -107,7 +107,7 @@ class TerrainExaggerationControl {
     `;
     
     this._valueLabel = document.createElement('div');
-    this._valueLabel.textContent = '0.15x';
+    this._valueLabel.textContent = '0.2x';
     this._valueLabel.style.cssText = `
       font-size: 11px;
       color: #666;
@@ -118,7 +118,7 @@ class TerrainExaggerationControl {
     
     this._slider.addEventListener('input', (e) => {
       const value = parseFloat(e.target.value);
-      this._valueLabel.textContent = `${value.toFixed(2)}x`;
+      this._valueLabel.textContent = `${value.toFixed(1)}x`;
       
       // Update terrain exaggeration
       this._map.setTerrain({
@@ -553,7 +553,7 @@ map.on('load', () => {
   // Enable 3D terrain with minimal default exaggeration
   map.setTerrain({
     source: 'gsi-terrain',
-    exaggeration: 0.15 // Very smooth default terrain
+    exaggeration: 0.2 // Very smooth default terrain
   });
 
   // Add hillshade layer for smoother shading
