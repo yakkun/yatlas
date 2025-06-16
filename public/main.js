@@ -631,6 +631,112 @@ window.addEventListener('popstate', () => {
 
 let mountainMarkers = [];
 
+// Cache management for persistent data
+class DataCache {
+  constructor() {
+    this.CACHE_VERSION = '1.0';
+    this.CACHE_EXPIRY_DAYS = 7; // Cache expires after 7 days
+  }
+  
+  generateCacheKey(bounds) {
+    // Create a cache key based on geographic bounds (rounded to reduce key variations)
+    const south = Math.floor(bounds.getSouth() * 100) / 100;
+    const west = Math.floor(bounds.getWest() * 100) / 100;
+    const north = Math.ceil(bounds.getNorth() * 100) / 100;
+    const east = Math.ceil(bounds.getEast() * 100) / 100;
+    return `mountains_${south}_${west}_${north}_${east}_v${this.CACHE_VERSION}`;
+  }
+  
+  getCachedData(cacheKey) {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (!cached) return null;
+      
+      const data = JSON.parse(cached);
+      const now = Date.now();
+      const expiryTime = data.timestamp + (this.CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+      
+      if (now > expiryTime) {
+        localStorage.removeItem(cacheKey);
+        return null;
+      }
+      
+      return data.mountains;
+    } catch (error) {
+      console.error('Error reading cache:', error);
+      return null;
+    }
+  }
+  
+  setCachedData(cacheKey, mountains) {
+    try {
+      const data = {
+        timestamp: Date.now(),
+        mountains: mountains
+      };
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      
+      // Clean up old cache entries to prevent localStorage bloat
+      this.cleanupOldCache();
+    } catch (error) {
+      console.error('Error writing cache:', error);
+      // If localStorage is full, clear old entries and try again
+      if (error.name === 'QuotaExceededError') {
+        this.cleanupOldCache();
+        try {
+          localStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch (retryError) {
+          console.error('Failed to cache data even after cleanup:', retryError);
+        }
+      }
+    }
+  }
+  
+  cleanupOldCache() {
+    try {
+      const keys = Object.keys(localStorage);
+      const mountainKeys = keys.filter(key => key.startsWith('mountains_'));
+      const now = Date.now();
+      
+      mountainKeys.forEach(key => {
+        try {
+          const data = JSON.parse(localStorage.getItem(key));
+          const expiryTime = data.timestamp + (this.CACHE_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+          
+          if (now > expiryTime) {
+            localStorage.removeItem(key);
+          }
+        } catch (error) {
+          // Remove corrupted cache entries
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // If we still have too many cache entries, remove the oldest ones
+      const remainingKeys = Object.keys(localStorage).filter(key => key.startsWith('mountains_'));
+      if (remainingKeys.length > 20) {
+        const keyTimestamps = remainingKeys.map(key => {
+          try {
+            const data = JSON.parse(localStorage.getItem(key));
+            return { key, timestamp: data.timestamp };
+          } catch {
+            return { key, timestamp: 0 };
+          }
+        }).sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Remove oldest entries, keep newest 15
+        keyTimestamps.slice(0, -15).forEach(item => {
+          localStorage.removeItem(item.key);
+        });
+      }
+    } catch (error) {
+      console.error('Error during cache cleanup:', error);
+    }
+  }
+}
+
+const dataCache = new DataCache();
+
 // Load hiking trails from OpenStreetMap
 async function loadHikingData() {
   try {
@@ -735,36 +841,52 @@ async function loadHikingData() {
 async function loadMountains() {
   try {
     const bounds = map.getBounds();
-    const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+    const cacheKey = dataCache.generateCacheKey(bounds);
     
-    const query = `
-      [out:json][timeout:25];
-      (
-        node["natural"="peak"](${bbox});
-      );
-      out geom;
-    `;
+    // Check cache first
+    let data = dataCache.getCachedData(cacheKey);
     
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: `data=${encodeURIComponent(query)}`
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    if (!data) {
+      // Cache miss - fetch from API
+      console.log('Loading mountains from API...');
+      const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+      
+      const query = `
+        [out:json][timeout:25];
+        (
+          node["natural"="peak"](${bbox});
+        );
+        out geom;
+      `;
+      
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `data=${encodeURIComponent(query)}`
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const apiData = await response.json();
+      data = apiData.elements;
+      
+      // Cache the data
+      dataCache.setCachedData(cacheKey, data);
+      console.log(`Cached ${data.length} mountains for future use`);
+    } else {
+      console.log(`Loaded ${data.length} mountains from cache`);
     }
-    
-    const data = await response.json();
     
     // Clear existing mountain markers
     mountainMarkers.forEach(marker => marker.remove());
     mountainMarkers = [];
     
     // Add mountain markers
-    data.elements.forEach(mountain => {
+    data.forEach(mountain => {
       if (mountain.lat && mountain.lon) {
         const name = mountain.tags?.name || mountain.tags?.['name:ja'];
         const elevation = mountain.tags?.ele ? parseInt(mountain.tags.ele) : null;
@@ -833,7 +955,7 @@ async function loadMountains() {
       }
     });
     
-    console.log(`Loaded ${data.elements.length} mountains from OpenStreetMap`);
+    console.log(`Displaying ${data.length} mountains on map`);
     
   } catch (error) {
     console.error('Error loading mountains:', error);
