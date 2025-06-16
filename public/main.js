@@ -166,6 +166,175 @@ class TerrainExaggerationControl {
 
 map.addControl(new TerrainExaggerationControl(), 'top-right');
 
+// Add river/stream emphasis control
+class RiverControl {
+  onAdd(map) {
+    this._map = map;
+    this._container = document.createElement('div');
+    this._container.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+    
+    this._button = document.createElement('button');
+    this._button.type = 'button';
+    this._button.title = '川・沢筋の強調表示';
+    this._button.style.cssText = `
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c-2 4-4 6-6 8s-4 4-4 6c0 4 4 6 10 6s10-2 10-6c0-2-2-4-4-6s-4-4-6-8z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 16px;
+    `;
+    
+    this._isActive = false;
+    
+    this._button.addEventListener('click', () => {
+      this._isActive = !this._isActive;
+      this.toggleRiverEmphasis();
+      
+      this._button.style.backgroundColor = this._isActive ? '#007cbf' : '';
+      this._button.style.color = this._isActive ? 'white' : '';
+    });
+    
+    this._container.appendChild(this._button);
+    return this._container;
+  }
+  
+  toggleRiverEmphasis() {
+    if (this._isActive) {
+      // Load and emphasize rivers/streams
+      this.loadRivers();
+    } else {
+      // Remove river emphasis layers
+      if (this._map.getLayer('river-lines')) {
+        this._map.removeLayer('river-lines');
+      }
+      if (this._map.getLayer('river-lines-highlight')) {
+        this._map.removeLayer('river-lines-highlight');
+      }
+      if (this._map.getSource('rivers')) {
+        this._map.removeSource('rivers');
+      }
+    }
+  }
+  
+  async loadRivers() {
+    try {
+      const bounds = this._map.getBounds();
+      const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+      
+      const query = `
+        [out:json][timeout:25];
+        (
+          way["waterway"="river"](${bbox});
+          way["waterway"="stream"](${bbox});
+        );
+        out geom;
+      `;
+      
+      const response = await fetch('https://overpass-api.de/api/interpreter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `data=${encodeURIComponent(query)}`
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      // Process river data
+      const riverFeatures = [];
+      
+      data.elements.forEach(element => {
+        if (element.type === 'way' && element.geometry) {
+          const waterway = element.tags?.waterway;
+          const name = element.tags?.name || '';
+          
+          riverFeatures.push({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: element.geometry.map(coord => [coord.lon, coord.lat])
+            },
+            properties: {
+              waterway: waterway,
+              name: name,
+              width: waterway === 'river' ? 3 : 2
+            }
+          });
+        }
+      });
+      
+      // Add river source and layers
+      if (this._map.getSource('rivers')) {
+        this._map.removeSource('rivers');
+      }
+      
+      this._map.addSource('rivers', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: riverFeatures
+        }
+      });
+      
+      // Add highlight layer (outer glow)
+      if (!this._map.getLayer('river-lines-highlight')) {
+        this._map.addLayer({
+          id: 'river-lines-highlight',
+          type: 'line',
+          source: 'rivers',
+          paint: {
+            'line-color': '#0099FF',
+            'line-width': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              10, ['*', ['get', 'width'], 2],
+              15, ['*', ['get', 'width'], 3]
+            ],
+            'line-opacity': 0.3,
+            'line-blur': 3
+          }
+        });
+      }
+      
+      // Add main river lines
+      if (!this._map.getLayer('river-lines')) {
+        this._map.addLayer({
+          id: 'river-lines',
+          type: 'line',
+          source: 'rivers',
+          paint: {
+            'line-color': '#0066CC',
+            'line-width': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              10, ['get', 'width'],
+              15, ['*', ['get', 'width'], 1.5]
+            ],
+            'line-opacity': 0.8
+          }
+        });
+      }
+      
+      console.log(`Loaded ${riverFeatures.length} river/stream segments`);
+      
+    } catch (error) {
+      console.error('Error loading rivers:', error);
+    }
+  }
+  
+  onRemove() {
+    this._container.parentNode.removeChild(this._container);
+    this._map = undefined;
+  }
+}
+
+map.addControl(new RiverControl(), 'top-right');
+
 // Weather API configuration (using completely free Open-Meteo API)
 const WEATHER_API_URL = 'https://api.open-meteo.com/v1';
 
@@ -457,6 +626,20 @@ map.on('moveend', () => {
     if (map.getZoom() > 8) {
       loadMountains();
       loadHikingData();
+      
+      // Update river data if active
+      const riverControl = document.querySelector('.maplibregl-ctrl-group button[title="川・沢筋の強調表示"]');
+      if (riverControl && riverControl.style.backgroundColor) {
+        // River emphasis is active, reload rivers
+        const bounds = map.getBounds();
+        const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+        
+        // Use the loadRivers method directly
+        const riverControlInstance = map._controls.find(control => control.constructor.name === 'RiverControl');
+        if (riverControlInstance) {
+          riverControlInstance.loadRivers();
+        }
+      }
     }
   }, 1000); // Wait 1 second after map stops moving
 });
