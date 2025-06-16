@@ -613,6 +613,11 @@ async function loadMountains() {
             cursor: pointer;
           `;
           
+          // Prevent click event from propagating to map
+          container.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+          
           // Create mountain icon (green triangle)
           const icon = document.createElement('div');
           icon.style.cssText = `
@@ -696,6 +701,11 @@ async function loadMountains() {
           align-items: center;
           cursor: pointer;
         `;
+        
+        // Prevent click event from propagating to map
+        container.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
         
         // Create mountain icon (green triangle)
         const icon = document.createElement('div');
@@ -797,6 +807,13 @@ async function getElevation(lng, lat) {
 
 // Add click event to show elevation and weather
 map.on('click', async (e) => {
+  // Check if click is on a marker (to avoid duplicate popups)
+  const features = map.queryRenderedFeatures(e.point);
+  if (features.length > 0) {
+    // Click is on a feature, let the marker handle the popup
+    return;
+  }
+  
   const { lng, lat } = e.lngLat;
   
   // Show loading popup first
